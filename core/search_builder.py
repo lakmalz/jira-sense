@@ -94,6 +94,65 @@ class JiraSearchBuilder:
         
         return filtered_results
     
+    def semantic_search(
+        self,
+        query: str,
+        n_results: int = 10,
+        where: Optional[Dict[str, Any]] = None,
+        similarity_threshold: Optional[float] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        Perform pure semantic search without keyword filtering
+        Uses embeddings to find conceptually similar content
+        
+        Args:
+            query: The search query (can be a phrase, sentence, or question)
+            n_results: Number of results to return (default: 10)
+            where: Optional metadata filter
+            similarity_threshold: Optional minimum similarity score (0-1)
+            
+        Returns:
+            List of dictionaries containing matched documents with metadata
+            
+        Example:
+            # Find documents about mobile validation
+            results = searcher.semantic_search("how to validate mobile numbers")
+            
+            # Find high-quality matches only
+            results = searcher.semantic_search("authentication process", similarity_threshold=0.75)
+        """
+        # Perform semantic search using ChromaDB's query
+        results = self.collection.query(
+            query_texts=[query],
+            n_results=n_results,
+            where=where
+        )
+        
+        # Format results
+        formatted_results = []
+        
+        if not results['ids'] or len(results['ids'][0]) == 0:
+            return formatted_results
+        
+        for idx in range(len(results['ids'][0])):
+            distance = results['distances'][0][idx] if results['distances'] else None
+            similarity = 1 - distance if distance is not None else None
+            
+            # Apply similarity threshold if provided
+            if similarity_threshold is not None and similarity is not None:
+                if similarity < similarity_threshold:
+                    continue
+            
+            formatted_results.append({
+                'id': results['ids'][0][idx],
+                'document': results['documents'][0][idx],
+                'metadata': results['metadatas'][0][idx] if results['metadatas'] else None,
+                'distance': distance,
+                'similarity': similarity
+            })
+        
+        return formatted_results
+    
     def _filter_by_keyword(
         self, 
         results: Dict[str, Any], 
@@ -122,18 +181,7 @@ class JiraSearchBuilder:
         # Build pattern and flags here instead of calling a separate helper method
         keyword_escaped = re.escape(keyword)
         flexible_pattern = keyword_escaped.replace(r'\ ', r'[\s\-_]*')
-        pattern = r'\b' + flexible_pattern + r'\b'
-        variations = [pattern]
-
-        # If keyword contains "no" also match "number" and vice versa
-        if re.search(r'\bno\b', keyword, re.IGNORECASE):
-            alt_pattern = re.sub(r'\\bno\\b', r'(no|number)', flexible_pattern, flags=re.IGNORECASE)
-            variations.append(r'\b' + alt_pattern + r'\b')
-        if re.search(r'\bnumber\b', keyword, re.IGNORECASE):
-            alt_pattern = re.sub(r'\\bnumber\\b', r'(no|number)', flexible_pattern, flags=re.IGNORECASE)
-            variations.append(r'\b' + alt_pattern + r'\b')
-
-        keyword_pattern = '|'.join(variations)
+        keyword_pattern = r'\b' + flexible_pattern + r'\b'
         flags = 0 if case_sensitive else re.IGNORECASE
         
         for idx in range(len(results['ids'][0])):
