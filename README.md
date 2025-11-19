@@ -245,3 +245,12 @@ CSV file should be located at `temp/files/chunked_data.csv` with these columns:
 - **Banking-Compliant**: Uses `sentence-transformers` locally - no data sent to external APIs
 - **Privacy**: All processing happens on your infrastructure
 - **Model**: all-MiniLM-L6-v2 (80MB, 384 dimensions, runs locally)
+
+
+echo "# jira-sense" >> README.md
+git init
+git add README.md
+git commit -m "first commit"
+git branch -M master
+git remote add origin https://github.com/lakmalz/jira-sense.git
+git push -u origin master
