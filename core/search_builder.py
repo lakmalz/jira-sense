@@ -117,18 +117,33 @@ class JiraSearchBuilder:
         if not results['ids'] or len(results['ids'][0]) == 0:
             return filtered
         
-        # Create regex pattern for flexible matching
+        # Create regex pattern for flexible matching (inlined)
         # This will match variations like "mobile no", "Mobile Number", "MOBILE NO", etc.
-        keyword_pattern = self._create_keyword_pattern(keyword, case_sensitive)
+        # Build pattern and flags here instead of calling a separate helper method
+        keyword_escaped = re.escape(keyword)
+        flexible_pattern = keyword_escaped.replace(r'\ ', r'[\s\-_]*')
+        pattern = r'\b' + flexible_pattern + r'\b'
+        variations = [pattern]
+
+        # If keyword contains "no" also match "number" and vice versa
+        if re.search(r'\bno\b', keyword, re.IGNORECASE):
+            alt_pattern = re.sub(r'\\bno\\b', r'(no|number)', flexible_pattern, flags=re.IGNORECASE)
+            variations.append(r'\b' + alt_pattern + r'\b')
+        if re.search(r'\bnumber\b', keyword, re.IGNORECASE):
+            alt_pattern = re.sub(r'\\bnumber\\b', r'(no|number)', flexible_pattern, flags=re.IGNORECASE)
+            variations.append(r'\b' + alt_pattern + r'\b')
+
+        keyword_pattern = '|'.join(variations)
+        flags = 0 if case_sensitive else re.IGNORECASE
         
         for idx in range(len(results['ids'][0])):
             document = results['documents'][0][idx]
-            
+
             # Check if keyword pattern exists in document
-            if re.search(keyword_pattern, document):
+            if re.search(keyword_pattern, document, flags):
                 # Find all matches in the document
-                matches = re.findall(keyword_pattern, document, re.IGNORECASE if not case_sensitive else 0)
-                
+                matches = re.findall(keyword_pattern, document, flags)
+
                 filtered.append({
                     'id': results['ids'][0][idx],
                     'document': document,
@@ -144,45 +159,7 @@ class JiraSearchBuilder:
         
         return filtered
     
-    def _create_keyword_pattern(self, keyword: str, case_sensitive: bool = False) -> str:
-        """
-        Create a flexible regex pattern that matches keyword variations
-        
-        Args:
-            keyword: Original keyword (e.g., "Mobile no")
-            case_sensitive: Whether pattern should be case-sensitive
-            
-        Returns:
-            Regex pattern string
-        """
-        # Normalize keyword: replace spaces/hyphens/underscores with flexible pattern
-        # This allows matching "mobile no", "mobile_no", "mobile-no", "mobile number", etc.
-        
-        keyword_escaped = re.escape(keyword)
-        
-        # Replace spaces with pattern that matches space, hyphen, underscore, or nothing
-        flexible_pattern = keyword_escaped.replace(r'\ ', r'[\s\-_]*')
-        
-        # Add word boundaries to avoid partial matches
-        pattern = r'\b' + flexible_pattern + r'\b'
-        
-        # Also create variations for common substitutions
-        variations = [pattern]
-        
-        # If keyword contains "no", also match "number"
-        if re.search(r'\bno\b', keyword, re.IGNORECASE):
-            alt_pattern = re.sub(r'\\bno\\b', r'(no|number)', flexible_pattern, flags=re.IGNORECASE)
-            variations.append(r'\b' + alt_pattern + r'\b')
-        
-        # If keyword contains "number", also match "no"
-        if re.search(r'\bnumber\b', keyword, re.IGNORECASE):
-            alt_pattern = re.sub(r'\\bnumber\\b', r'(no|number)', flexible_pattern, flags=re.IGNORECASE)
-            variations.append(r'\b' + alt_pattern + r'\b')
-        
-        # Combine all variations
-        combined_pattern = '|'.join(variations)
-        
-        return combined_pattern
+    # NOTE: _create_keyword_pattern removed — pattern construction is inlined into _filter_by_keyword
     
     def get_all_data(self) -> Dict[str, Any]:
         """
@@ -302,64 +279,3 @@ class JiraSearchBuilder:
                 print(f"\nDocument Preview:\n{preview}")
             
             print("-" * 100)
-
-
-# Example usage
-if __name__ == "__main__":
-    import os
-    
-    # Get the parent directory (project root)
-    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    
-    # Initialize the search builder
-    print("="*100)
-    print("Jira Search Builder - Banking Compliant Mode")
-    print("="*100)
-    searcher = JiraSearchBuilder(
-        db_path=os.path.join(project_root, "temp", "chromadb"),
-        collection_name="jira_content",
-        model_name="all-MiniLM-L6-v2"  # Runs locally, no external API
-    )
-    
-    # Example 1: Search for "Mobile no" (case-insensitive)
-    print("\n" + "="*100)
-    print("Example 1: Search for 'Mobile no' (case-insensitive)")
-    print("="*100)
-    results = searcher.search_by_keyword("Mobile no", n_results=50)
-    searcher.format_results(results)
-    print(f"\nTotal matches found: {len(results)}")
-    
-    # Example 2: Search for "email address" (case-insensitive)
-    print("\n\n" + "="*100)
-    print("Example 2: Search for 'email address' (case-insensitive)")
-    print("="*100)
-    results = searcher.search_by_keyword("email address", n_results=50)
-    searcher.format_results(results[:5])  # Show first 5
-    print(f"\nTotal matches found: {len(results)}")
-    
-    # Example 3: Search for "username"
-    print("\n\n" + "="*100)
-    print("Example 3: Search for 'username'")
-    print("="*100)
-    results = searcher.search_by_keyword("username", n_results=50)
-    searcher.format_results(results[:5])
-    print(f"\nTotal matches found: {len(results)}")
-    
-    # Example 4: Get all data from the database
-    print("\n\n" + "="*100)
-    print("Example 4: Get ALL data from collection")
-    print("="*100)
-    all_data = searcher.get_all_data()
-    print(f"Total documents in collection: {len(all_data['ids'])}")
-    
-    # Example 5: Search with metadata filter (by country)
-    print("\n\n" + "="*100)
-    print("Example 5: Search 'Mobile no' in Singapore issues only")
-    print("="*100)
-    results = searcher.search_by_keyword(
-        keyword="Mobile no",
-        n_results=50,
-        where={"country": "Singapore"}
-    )
-    searcher.format_results(results)
-    print(f"\nTotal matches found: {len(results)}")
