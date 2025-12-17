@@ -182,7 +182,7 @@ def run_examples():
         return json.dumps({
             "primary_intent": "ACCEPTANCE_CRITERIA",
             "secondary_intents": [],
-            "confidence": 0.45  # Below threshold of 0.6
+            "confidence": 0.45  # Below ACCEPTANCE_CRITERIA threshold of 0.6
         })
     
     response3 = jira_refinement_copilot_v2(low_confidence_classifier, mock_llm_main, question3)
