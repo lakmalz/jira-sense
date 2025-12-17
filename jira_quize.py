@@ -241,12 +241,12 @@ def extract_context(question: str) -> dict:
     
     context = {
         "ui_related": any(w in q for w in ["button", "screen", "click", "field", "page", "form", "input", "modal", "popup"]),
-        "mentions_figma": "figma" in q or "design" in q or "mockup" in q,
+        "mentions_figma": "figma" in q or "mockup" in q or "design mockup" in q or "ui design" in q,
         "mentions_scope": "scope" in q or "in-scope" in q or "out of scope" in q,
         "mentions_ac": any(w in q for w in ["acceptance", "ac", "criteria"]),
         "mentions_ready": any(w in q for w in ["ready", "sprint", "development"]),
         "mentions_edge_cases": any(w in q for w in ["edge", "risk", "error", "failure", "exception"]),
-        "mentions_business_rules": any(w in q for w in ["rule", "validation", "condition", "if then"]),
+        "mentions_business_rules": any(w in q for w in ["rule", "validation", "condition"]) or "if then" in q or "if-then" in q,
         "has_question_words": any(w in q for w in ["what", "why", "how", "when", "where", "who"])
     }
     
@@ -524,8 +524,7 @@ def jira_refinement_copilot_v2(
         logger.error(f"Pipeline execution failed: {e}", exc_info=True)
         return (
             "I apologize, but I encountered an unexpected error processing your request. "
-            "Please try rephrasing your question or contact support if the issue persists.\n\n"
-            f"Error details: {str(e)}"
+            "Please try rephrasing your question or contact support if the issue persists."
         )
 
 # =========================================================
