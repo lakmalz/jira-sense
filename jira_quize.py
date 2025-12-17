@@ -551,3 +551,59 @@ print(
     )
 )
 """
+
+
+import re
+
+def format_for_jira_rich_text(text: str) -> str:
+    """
+    Formats LLM-generated text into clean, readable plain text
+    suitable for Jira rich text editor (no markdown, no wiki syntax).
+    """
+
+    # Normalize whitespace
+    text = text.replace("\r", "").strip()
+
+    lines = text.split("\n")
+    output = []
+    buffer = ""
+
+    for line in lines:
+        line = line.strip()
+
+        # Skip empty lines but flush buffer
+        if not line:
+            if buffer:
+                output.append(buffer.strip())
+                buffer = ""
+            continue
+
+        # Detect numbered section headings like:
+        # 1. **Understanding the Feature**:
+        section_match = re.match(r"^\d+\.\s+\*{0,2}(.+?)\*{0,2}:", line)
+        if section_match:
+            if buffer:
+                output.append(buffer.strip())
+                buffer = ""
+            output.append(f"{section_match.group(1)}:")
+            continue
+
+        # Bullet points
+        if line.startswith("-"):
+            if buffer:
+                output.append(buffer.strip())
+                buffer = ""
+            output.append(line)
+            continue
+
+        # Normal text → merge into paragraph
+        buffer += " " + line
+
+    if buffer:
+        output.append(buffer.strip())
+
+    # Final cleanup
+    formatted = "\n".join(output)
+    formatted = re.sub(r"\s{2,}", " ", formatted)
+
+    return formatted
