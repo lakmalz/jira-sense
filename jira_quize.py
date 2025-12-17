@@ -607,3 +607,14 @@ def format_for_jira_rich_text(text: str) -> str:
     formatted = re.sub(r"\s{2,}", " ", formatted)
 
     return formatted
+    
+    **Task**: Refine the following text to improve clarity, detail, and precision.
+
+**Instructions**:  
+1. **Focus on Clarity**: Edit the text to ensure it's concise and easy to understand.  
+2. **Enhance Completeness**: Ensure the text addresses all ambiguities or incomplete information.  
+3. **Maintain Context**: Retain the intended tone, purpose, and context of the original text.  
+4. **Provide Improved Examples**: List improved versions of the text as suggestions, without explanations.  
+5. **Output Format**:
+   - Use bullet points for each suggestion.  
+    
